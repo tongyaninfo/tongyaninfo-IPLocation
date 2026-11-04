@@ -1,0 +1,326 @@
+name: Release
+
+# 推送形如 v0.1.0 的 tag 后运行：先校验 tag 与根 VERSION 一致，再构建多平台产物，
+# 最后以草稿（draft）Release 汇总附件，人工检查后手动点击发布。
+#
+# 产物：六种 RID 的自包含后端发布包（win/osx/linux × x64/arm64，含前端静态文件）、
+# 前端静态文件 zip、多架构容器镜像（linux/amd64 + linux/arm64，推送 GHCR）、
+# SHA256SUMS.txt 与镜像清单。
+#
+# 前置条件：仓库需允许 Actions 写权限
+# Settings → Actions → General → Workflow permissions → Read and write permissions
+# 否则镜像推送会失败；首次推送的 GHCR 包默认为 private，需要手动把包可见性改为 public。
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  prepare:
+    name: 版本与 tag 校验
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      image: ${{ steps.check.outputs.image }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 校验 tag 与 VERSION 一致
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          file_version="$(tr -d '[:space:]' < VERSION)"
+          if [ "$version" != "$file_version" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} 与 VERSION ${file_version} 不一致，请先更新 VERSION 或改用正确 tag"
+            exit 1
+          fi
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::tag 版本必须是不带前缀的稳定语义版本，例如 v0.1.0"
+            exit 1
+          fi
+          image="ghcr.io/$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "版本校验通过：${version}"
+
+  frontend:
+    name: 前端静态产物
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: prepare
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 安装依赖
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: 构建前端
+        working-directory: frontend
+        run: npm run build
+
+      - name: 收集发布指针指向的构建目录
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const fs=require('node:fs');const r=JSON.parse(fs.readFileSync('.local/frontend-build-latest.json','utf8'));fs.cpSync(r.distPath,'release/frontend-dist',{recursive:true});console.log('前端构建：'+r.buildId);"
+          test -f release/frontend-dist/index.html
+
+      - name: 上传前端产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: release/frontend-dist
+          if-no-files-found: error
+          retention-days: 7
+
+  backend:
+    name: 后端自包含包（${{ matrix.rid }}）
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [prepare, frontend]
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [win-x64, win-arm64, osx-x64, osx-arm64, linux-x64, linux-arm64]
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 .NET SDK（读取 global.json）
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: 下载前端产物
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: stage/frontend-dist
+
+      - name: 发布自包含后端
+        run: |
+          dotnet publish backend/src/IpLocation.Api/IpLocation.Api.csproj \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained true \
+            --output publish \
+            -p:Version=${{ needs.prepare.outputs.version }} \
+            -p:PublishSingleFile=false \
+            -p:PublishTrimmed=false \
+            -p:DebugType=None \
+            -p:DebugSymbols=false
+
+      - name: 合并前端静态文件
+        run: |
+          mkdir -p publish/frontend
+          cp -R stage/frontend-dist publish/frontend/dist
+          test -f publish/frontend/dist/index.html
+
+      - name: 打包
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.prepare.outputs.version }}"
+          rid="${{ matrix.rid }}"
+          case "$rid" in
+            win-*) (cd publish && zip -qr "../IpLocation-${version}-${rid}.zip" .) ;;
+            *) (cd publish && tar -czf "../IpLocation-${version}-${rid}.tar.gz" .) ;;
+          esac
+          ls -lh "IpLocation-${version}-${rid}."*
+
+      - name: 上传后端包
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.rid }}
+          path: IpLocation-${{ needs.prepare.outputs.version }}-${{ matrix.rid }}.*
+          if-no-files-found: error
+          retention-days: 7
+
+  docker:
+    name: 容器镜像（${{ matrix.arch }}）
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: amd64
+            platform: linux/amd64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            platform: linux/arm64
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 登录 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 设置 Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 构建并推送单架构镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ needs.prepare.outputs.image }}:${{ needs.prepare.outputs.version }}-${{ matrix.arch }}
+          labels: |
+            org.opencontainers.image.title=tongyaninfo-IPLocation
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+  docker-merge:
+    name: 合并多架构镜像
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [prepare, docker]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: 设置 Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 合并 amd64/arm64 清单
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="${{ needs.prepare.outputs.image }}"
+          version="${{ needs.prepare.outputs.version }}"
+          docker buildx imagetools create \
+            --tag "${image}:${version}" \
+            --tag "${image}:latest" \
+            "${image}:${version}-amd64" \
+            "${image}:${version}-arm64"
+          docker buildx imagetools inspect "${image}:${version}" > image-manifest.txt
+          cat image-manifest.txt
+
+      - name: 上传镜像清单
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-manifest
+          path: image-manifest.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: 生成草稿 Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [prepare, frontend, backend, docker-merge]
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 下载后端包
+        uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          path: artifacts
+
+      - name: 下载前端产物
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: artifacts/frontend-dist
+
+      - name: 下载镜像清单
+        uses: actions/download-artifact@v4
+        with:
+          name: image-manifest
+          path: artifacts
+
+      - name: 整理附件与校验和
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.prepare.outputs.version }}"
+          mkdir -p release-assets
+          cp artifacts/package-*/* release-assets/
+          (cd artifacts/frontend-dist && zip -qr "../../release-assets/IpLocation-${version}-frontend.zip" .)
+          cp artifacts/image-manifest.txt release-assets/image-manifest.txt
+          (cd release-assets && sha256sum * > SHA256SUMS.txt)
+          ls -lh release-assets
+
+      - name: 创建草稿 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: v${{ needs.prepare.outputs.version }}
+          draft: true
+          fail_on_unmatched_files: true
+          files: release-assets/*
+          body: |
+            ## IP 聚合查询 v${{ needs.prepare.outputs.version }}
+
+            本 Release 由 tag `${{ github.ref_name }}` 自动构建，当前为草稿状态，检查后手动发布。
+
+            ### 产物
+
+            - `IpLocation-<版本>-<RID>.tar.gz` / `.zip`：六种 RID 的自包含后端发布包（win-x64、win-arm64、osx-x64、osx-arm64、linux-x64、linux-arm64），已包含前端静态文件；
+            - `IpLocation-<版本>-frontend.zip`：前端静态文件；
+            - `SHA256SUMS.txt`：全部附件校验和；
+            - `image-manifest.txt`：多架构镜像清单。
+
+            ### 容器镜像
+
+            ```
+            docker pull ${{ needs.prepare.outputs.image }}:${{ needs.prepare.outputs.version }}
+            ```
+
+            镜像同时提供 `linux/amd64` 与 `linux/arm64`，并附带 `latest` 标签。首次推送的 GHCR 包默认为 private，如需公开拉取，请在 GitHub Packages 设置中把该包可见性调整为 public。
+
+            ### 运行说明
+
+            1. 解压后端包后按 `docs/development.md` 与部署文档配置数据库连接、可信代理与 IP 数据文件路径；数据源文件不随仓库或镜像分发，许可与获取方式见 `docs/spec/数据源与许可.md`。
+            2. 校验附件：`sha256sum -c SHA256SUMS.txt`（Windows 可用 `certutil` 或解压工具自带校验）。
+            3. 草稿 Release 中的产物尚未经过发布评审，请确认后再改为正式发布。
+
+            ### 构建信息
+
+            - 提交：`${{ github.sha }}`
+            - 工作流：`.github/workflows/release.yml`
