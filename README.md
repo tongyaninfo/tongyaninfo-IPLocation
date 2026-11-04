@@ -6,7 +6,11 @@
 
 面向浏览器、命令行与 AI 智能体的 IP 聚合查询服务：打开即查当前访问 IP，多来源对照归属地与网络信息，通过 JSON / XML / TXT 或公开 MCP 接入自己的工作流。
 
-[通研官网](https://www.tongyaninfo.com/) · [产品说明](docs/README.md) · [在线示例](https://ip.tongyaninfo.com/) · [MCP 接入](https://ip.tongyaninfo.com/#mcp) · [部署文档](deploy/README.md) · [数据源与许可](docs/spec/数据源与许可.md)
+**通研官网**：[www.tongyaninfo.com](https://www.tongyaninfo.com/)
+
+**产品官网**：[ip.tongyaninfo.com](https://ip.tongyaninfo.com/)
+
+[产品说明](docs/README.md) · [MCP 接入](https://ip.tongyaninfo.com/#mcp) · [部署文档](deploy/README.md) · [数据源与许可](docs/spec/数据源与许可.md)
 
 > 本项目为开源版本，源码以 [Apache License 2.0](LICENSE) 发布。示例部署域名为 `ip.tongyaninfo.com`，部署到自有环境时可替换为自己的域名与品牌；IP 数据库文件不随仓库分发，请按[数据源与许可](docs/spec/数据源与许可.md)自行获取并确认授权。
 
