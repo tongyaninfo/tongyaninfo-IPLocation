@@ -7,8 +7,11 @@ import { CopyButton } from '../../components/CopyButton';
 import { Icon } from '../../components/Icon';
 import { ThemeSwitcher } from '../../components/ThemeSwitcher';
 import { ProviderCard } from '../../components/ProviderCard';
+import { ProviderLogo } from '../../components/ProviderLogo';
 import { useIpLookup } from '../../models/useIpLookup';
 import { addressTypeText, sourceVisuals } from '../../utils/presentation';
+
+const repositoryUrl = 'https://github.com/tongyaninfo/tongyaninfo-IPLocation';
 
 export default function HomePage() {
   const model = useIpLookup();
@@ -25,6 +28,7 @@ export default function HomePage() {
   const query = model.response?.result.data;
   const businessError = model.response && !model.response.result.success ? model.response.result.message : null;
   const visibleProviders = model.providers.filter(provider => provider.enabled === true);
+  const cz88Provider = visibleProviders.find(provider => provider.id === 'CZ88');
   const readyCount = visibleProviders.filter(provider => provider.ready).length;
   const queriedSources = new Map(query?.sources.filter(source => ['success', 'notFound'].includes(source.status)).map(source => [source.id, source]));
   // 以当前启用列表的顺序展示卡片和署名，查询返回顺序或旧结果不能复活停用来源。
@@ -72,6 +76,14 @@ export default function HomePage() {
       <section className="principles"><div><span className="principle-icon"><Icon name="database" /></span><div><h3>来源清楚</h3><p>保留各来源状态、版本与实际字段</p></div></div><div><span className="principle-icon"><Icon name="shield" /></span><div><h3>信息有边界</h3><p>缺失信息如实显示，不拼成精确位置</p></div></div><div><span className="principle-icon"><Icon name="terminal" /></span><div><h3>适合你的工作流</h3><p>浏览器、脚本和服务使用统一接口</p></div></div></section>
       </div>
     </main>
-    <footer className="public-footer"><div className="container"><div className="footer-main"><span>通研信息 <span className="footer-dot">·</span> IP 聚合查询</span><span>让网络信息更清晰。</span><a href="#api">API 使用说明 <Icon name="arrow" size={14} /></a></div>{usedSources.length ? <div className="attribution" aria-label="本次结果数据来源">{usedSources.map(source => source.id === 'CZ88' ? <p key={source.id}>IP地址位置数据由<a href="https://www.cz88.net">纯真CZ88</a>提供支持</p> : <span key={source.id}>{source.id === 'ip2location' ? <>通研信息 uses the IP2Location LITE database for <a href="https://lite.ip2location.com" target="_blank" rel="noreferrer">IP geolocation</a>.</> : source.id === 'dbip' ? <a href="https://db-ip.com" target="_blank" rel="noreferrer">IP Geolocation by DB-IP</a> : <a href={sourceVisuals[source.id]?.homepage} target="_blank" rel="noreferrer">{source.attribution || source.name}</a>}</span>)}</div> : <p className="footer-status">当前尚无实际使用的查询来源，来源就绪并参与查询后显示相应署名。</p>}</div></footer>
+    <footer className="public-footer"><div className="container">
+      <div className="footer-main"><span>通研信息 <span className="footer-dot">·</span> IP 聚合查询</span><span>让网络信息更清晰。</span><a href="#api">API 使用说明 <Icon name="arrow" size={14} /></a></div>
+      <div className="footer-community">
+        <div className="community-links" aria-label="开源与反馈"><span>已开源，欢迎使用、提交代码与反馈。</span><a href={repositoryUrl} target="_blank" rel="noopener noreferrer"><Icon name="github" size={16} />GitHub 仓库</a><a href={`${repositoryUrl}/issues`} target="_blank" rel="noopener noreferrer">问题反馈 · Issues <Icon name="external" size={13} /></a></div>
+        {/* 致谢复用官方 Logo，与既有署名一样随纯真启停展示，不依赖查询是否成功。 */}
+        {cz88Provider ? <aside className="provider-thanks" aria-label="授权支持致谢"><ProviderLogo provider={cz88Provider} compact /><p>感谢 <a href={sourceVisuals.CZ88.homepage} target="_blank" rel="noopener noreferrer">纯真（CZ88.net）</a><br />给予本项目的授权支持。</p></aside> : null}
+      </div>
+      {usedSources.length ? <div className="attribution" aria-label="本次结果数据来源">{usedSources.map(source => source.id === 'CZ88' ? <p key={source.id}>IP地址位置数据由<a href="https://www.cz88.net">纯真CZ88</a>提供支持</p> : <span key={source.id}>{source.id === 'ip2location' ? <>通研信息 uses the IP2Location LITE database for <a href="https://lite.ip2location.com" target="_blank" rel="noreferrer">IP geolocation</a>.</> : source.id === 'dbip' ? <a href="https://db-ip.com" target="_blank" rel="noreferrer">IP Geolocation by DB-IP</a> : <a href={sourceVisuals[source.id]?.homepage} target="_blank" rel="noreferrer">{source.attribution || source.name}</a>}</span>)}</div> : <p className="footer-status">当前尚无实际使用的查询来源，来源就绪并参与查询后显示相应署名。</p>}
+    </div></footer>
   </div>;
 }

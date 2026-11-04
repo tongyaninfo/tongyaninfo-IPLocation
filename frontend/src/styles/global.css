@@ -461,3 +461,19 @@
 .mcp-panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}.mcp-panel-heading h3{margin:0;flex:1;min-width:130px}.mcp-panel-heading>.copy-button{flex-shrink:0;border:1px solid var(--line);background:var(--surface-subtle)}
 @media(max-width:820px){.mcp-panels{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){.mcp-panel{padding-top:18px}.mcp-panel h3{font-size:14px}.mcp-panel p,.mcp-tools{font-size:11px}.mcp-panel .mcp-caption{font-size:10px}.mcp-code pre{flex-basis:100%;width:100%}.mcp-code code{min-width:0}.mcp-code .copy-button{margin-left:auto}.public-header nav{gap:20px}}
+
+/* 开源入口随页脚换行；使用外边距兼容不支持 flex gap 的旧浏览器。 */
+.community-links{display:flex;flex-wrap:wrap;align-items:center;margin:14px -10px -4px;line-height:1.8;color:var(--text-secondary)}
+.community-links>*{margin:4px 10px}.community-links a{display:inline-flex;align-items:center;color:var(--primary);min-height:32px}
+.community-links a svg:first-child{margin-right:6px}.community-links a svg:last-child:not(:first-child){margin-left:5px}
+.community-links a:hover{text-decoration:underline;text-underline-offset:3px}
+@media(max-width:600px){.community-links>span{flex-basis:100%}}
+
+/* 页脚右侧的小块致谢使用 Grid 间距，兼容旧 Chrome；窄屏随内容换行。 */
+.footer-community{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px 24px;margin-top:14px}
+.footer-community .community-links{min-width:0;margin-top:0}
+.provider-thanks{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:12px;max-width:100%;color:var(--text-secondary);font-size:11px;line-height:1.8}
+.provider-thanks p{margin:0;min-width:0;overflow-wrap:break-word;word-break:break-word}
+.provider-thanks p a{color:var(--primary)}
+.provider-thanks p a:hover{text-decoration:underline;text-underline-offset:3px}
+@media(max-width:820px){.footer-community{grid-template-columns:minmax(0,1fr)}.provider-thanks{justify-self:start}}
