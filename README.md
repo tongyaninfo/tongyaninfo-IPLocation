@@ -151,6 +151,14 @@ CI 配置见 [.github/workflows/ci.yml](.github/workflows/ci.yml)。
 
 欢迎提交 Issue 与 Pull Request。开始前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)；安全漏洞请按 [SECURITY.md](SECURITY.md) 的流程报告，不要公开提交。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
+## 特别鸣谢
+
+[![纯真 CZ88](frontend/public/logos/cz88.png)](https://www.cz88.net)
+
+感谢 [纯真（CZ88.net）](https://www.cz88.net) 给予本项目的授权支持。纯真社区版 IP 库按授权页面要求展示署名即取得社区版使用授权；授权材料与适用范围说明不随本仓库分发，数据源许可与署名要求见 [NOTICE](NOTICE) 与[数据源与许可](docs/spec/数据源与许可.md)。
+
+> 产品中展示的署名：IP地址位置数据由[纯真CZ88](https://www.cz88.net)提供支持
+
 ## English Summary
 
 IPLocation is an open-source IP aggregation lookup service (Apache-2.0). It provides a responsive web UI, curl/wget-friendly plain-IP responses, JSON/XML/TXT query APIs, a public read-only MCP endpoint, and a protected admin console. .NET 10 backend, React 19 + Vite frontend, optional PostgreSQL persistence; IP databases (DB-IP Lite, IP2Location LITE, ip2region, IPinfo Lite, Chunzhen, MaxMind GeoLite2) are **not** bundled and must be obtained separately under their own licenses. See [docs/README.en.md](docs/README.en.md) for details and [NOTICE](NOTICE) for data-source attribution.
