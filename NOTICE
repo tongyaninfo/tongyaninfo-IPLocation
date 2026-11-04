@@ -1,0 +1,79 @@
+IP 聚合查询（IPLocation）
+Copyright 2026 tongyaninfo（通研信息）
+
+This product includes software developed by the tongyaninfo project.
+
+===============================================================================
+第三方数据源署名与许可提示
+Third-Party Data Source Attribution and Licensing Notices
+===============================================================================
+
+本仓库分发的只是源代码，**不包含**任何 IP 地理数据库文件或数据包。使用者需
+自行从各数据源获取数据，并自行确认其许可、署名与使用范围是否适用于自己的部
+署场景。以下信息仅为来源说明，不构成法律意见，也不代表本项目已取得任何来源
+的授权。
+
+The source code is distributed WITHOUT any IP geolocation database files. You
+must obtain each database separately and verify that its license and attribution
+requirements apply to your deployment. The following notices are informational
+only.
+
+1. DB-IP Lite (https://db-ip.com/db/lite.php)
+   Data by DB-IP (https://db-ip.com). Licensed under CC BY 4.0
+   (https://creativecommons.org/licenses/by/4.0/). Pages displaying its results
+   must link back to DB-IP. Adapter: MMDB (City Lite).
+
+2. IP2Location LITE (https://www.ip2location.com/database/lite)
+   Data by IP2Location (https://www.ip2location.com). Use of the LITE databases
+   is subject to the current IP2Location LITE terms
+   (https://www.ip2location.com/lite-terms), including usage restrictions.
+   Required attribution displayed by the product:
+   "通研信息 uses the IP2Location LITE database for
+    <a href="https://lite.ip2location.com">IP geolocation</a>."
+   Adapter: DB11 MMDB.
+
+3. ip2region (https://github.com/lionsoul2014/ip2region)
+   Parser code is dual-licensed under Apache-2.0 OR MIT. The bundled data files
+   and any commercial community data are covered by their own terms, which are
+   not implied by the code license. Adapter: XDB.
+
+4. IPinfo Lite (https://ipinfo.io/lite)
+   Data by IPinfo (https://ipinfo.io). Licensed under CC BY-SA 4.0
+   (https://creativecommons.org/licenses/by-sa/4.0/); attribution is required.
+   Do not expose account tokens or signed download URLs. Adapter: MMDB.
+
+5. 纯真社区版 / Chunzhen Community Edition (https://www.cz88.net/)
+   Data by 纯真 (CZ88). The community edition page states CC BY-SA 4.0 while its
+   FAQ states separate authorization is required for non-commercial and SaaS
+   use; review the applicable terms yourself. Required attribution displayed by
+   the product:
+   "IP地址位置数据由<a href="https://www.cz88.net">纯真CZ88</a>提供支持"
+   Adapter: QQWry DAT (IPv4).
+
+6. MaxMind GeoLite2 (https://dev.maxmind.com/geoip/geolite2-free-geolocation-data/)
+   Data by MaxMind (https://www.maxmind.com). GeoLite2 databases are subject to
+   the GeoLite2 End User License Agreement
+   (https://www.maxmind.com/en/geolite/eula) and CC BY-SA 4.0. The adapter is
+   currently disabled by default.
+
+Each data source retains its own copyright and license. Attribution in the
+product UI does not replace, waive, or extend any other license term.
+
+===============================================================================
+第三方软件组件
+Third-Party Software Components
+===============================================================================
+
+前端与后端依赖的第三方库（React、Ant Design、Vite、MaxMind.GeoIP2、
+Npgsql、.NET 运行时组件等）分别适用其各自的许可。依赖清单与具体版本见
+`frontend/package-lock.json`、`backend/src/IpLocation.Api/packages.lock.json`
+及各 NuGet 包元数据。
+
+===============================================================================
+免责声明
+Disclaimer
+===============================================================================
+
+IP 归属地与坐标来自数据库推断，可能存在误差，不代表任何人员或设备的精确位
+置，不应用于定位特定家庭、个人或街道地址。本项目按 Apache License 2.0 提供，
+不附带任何明示或默示担保。

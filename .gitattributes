@@ -1,0 +1,31 @@
+* text=auto eol=lf
+
+*.cs     text diff=csharp
+*.slnx   text
+*.csproj text
+*.json   text
+*.md     text
+*.yml    text
+*.yaml   text
+*.sh     text eol=lf
+
+# 图片与字体按二进制处理
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.webp   binary
+*.avif   binary
+*.woff   binary
+*.woff2  binary
+
+# IP 数据文件与压缩产物不参与文本转换
+*.mmdb   binary
+*.xdb    binary
+*.dat    binary
+*.zip    binary
+*.gz     binary
+*.br     binary
+
+# 构建产物由 .gitignore 排除，不单独声明属性

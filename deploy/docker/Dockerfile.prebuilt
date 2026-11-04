@@ -1,0 +1,13 @@
+# 产物打包镜像：构建上下文需包含 app/（后端 dotnet publish 产物 + frontend/dist）。
+# 适用于目标机无法访问 npm/NuGet 的离线或内网部署：
+#   1. 在可联网机器执行 npm run build 与 dotnet publish；
+#   2. 将 publish 产物放入 app/，前端 dist 放入 app/frontend/dist/；
+#   3. docker build -f Dockerfile.prebuilt -t <镜像>:<标签> .
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+ENV ASPNETCORE_URLS=http://0.0.0.0:5080 \
+    ASPNETCORE_ENVIRONMENT=Production \
+    DOTNET_RUNNING_IN_CONTAINER=true
+COPY app/ /app/
+EXPOSE 5080
+ENTRYPOINT ["dotnet", "IpLocation.Api.dll"]

@@ -1,0 +1,17 @@
+# 多阶段 Dockerfile 的构建上下文排除项（基于仓库根构建时生效）
+.git
+.gitignore
+node_modules
+frontend/node_modules
+frontend/dist
+frontend/tests
+backend/**/bin
+backend/**/obj
+backend/**/TestResults
+/tests
+/docs
+.local
+/deploy
+/scripts
+/.github
+*.md

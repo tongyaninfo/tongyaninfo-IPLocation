@@ -1,0 +1,76 @@
+# IP 聚合查询完整编排：API + PostgreSQL 17。
+# 部署目录约定（相对本文件所在目录）：
+#   ./data/     数据源文件（只读挂载到容器 /data）
+#   ./sql/      首次初始化 SQL（挂载到 postgres 的 docker-entrypoint-initdb.d，按文件名排序执行）
+#   ./pgdata/   PostgreSQL 持久化数据
+#   ./keys/     会话密钥与管理员密码文件
+#   ./uploads/  后台来源上传目录
+# 密码与镜像标签通过同目录 .env 提供（IPLOCATION_DB_PASSWORD、IPLOCATION_API_TAG），不写入仓库。
+# 兼容 docker-compose 1.22（version 3.7 语法）。
+version: "3.7"
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: iplocation-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: iplocation
+      POSTGRES_USER: iplocation
+      POSTGRES_PASSWORD: ${IPLOCATION_DB_PASSWORD:?需要在 .env 设置 IPLOCATION_DB_PASSWORD}
+      TZ: Asia/Shanghai
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iplocation -d iplocation"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - internal
+
+  api:
+    # 镜像仓库请替换为实际私有/公共 Registry；示例使用公开占位域名。
+    image: registry.example.com/tongyaninfo/iplocation-api:${IPLOCATION_API_TAG:-latest}
+    container_name: iplocation-api
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      Urls: http://0.0.0.0:5080
+      ASPNETCORE_ENVIRONMENT: Production
+      Frontend__DistPath: /app/frontend/dist
+      # Tunnel 经宿主转发后，容器只信任这一跳的精确地址；网关变化时显式覆盖，不能扩大为整个私网。
+      TrustedProxies__KnownProxies__0: ${IPLOCATION_TRUSTED_PROXY_ADDRESS:-172.18.0.1}
+      TrustedProxies__ForwardLimit: "1"
+      Database__Enabled: "true"
+      ConnectionStrings__IpLocation: "Host=postgres;Port=5432;Database=iplocation;Username=iplocation;Password=${IPLOCATION_DB_PASSWORD}"
+      IdGeneration__WorkerId: "1"
+      ConsoleAuth__KeyRingPath: /keys
+      Uploads__StorageRoot: /uploads
+      DbIp__Enabled: "true"
+      DbIp__DatabasePath: /data/dbip/dbip-city-lite-2026-11.mmdb
+      IP2Location__Enabled: "true"
+      IP2Location__DatabasePath: /data/ip2location/IP2LOCATION-LITE-DB11.MMDB
+      Ip2Region__Enabled: "true"
+      Ip2Region__Ipv4DatabasePath: /data/ip2region/ip2region_v4.xdb
+      Ip2Region__Ipv6DatabasePath: /data/ip2region/ip2region_v6.xdb
+      Ipinfo__Enabled: "true"
+      Ipinfo__DatabasePath: /data/ipinfo/ipinfo_lite.mmdb
+      Chunzhen__Enabled: "true"
+      Chunzhen__DatabasePath: /data/cz88/qqwry.dat
+      GeoLite2__Enabled: "false"
+    ports:
+      # 宿主上的 cloudflared 可用 127.0.0.1 收敛入口；默认保留原有局域网访问方式。
+      - "${IPLOCATION_API_BIND_ADDRESS:-0.0.0.0}:5080:5080"
+    volumes:
+      - ./data:/data:ro
+      - ./keys:/keys
+      - ./uploads:/uploads
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
