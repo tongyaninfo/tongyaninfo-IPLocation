@@ -11,6 +11,7 @@ const legacyTransformers = [legacyLogicalPropertiesTransformer];
 
 // 控制台独立 chunk，由后端同时保护 /assets/console-* 与 /console 入口。
 const ConsolePage = lazy(() => import('./pages/Console/console'));
+const ProductFeedback = lazy(() => import('./components/ProductFeedback'));
 
 export default function App() {
   return <StyleProvider hashPriority={styleCompatibility.legacySelectors ? 'high' : 'low'}
@@ -41,5 +42,5 @@ function ThemedApp() {
       Tabs: { inkBarColor: '#EF8200' },
       Table: { headerBg: dark ? '#1e324d' : '#f7f9fc', headerColor: palette.muted }
     }
-  }}><Suspense fallback={<div className="app-loading" role="status"><span />正在载入管理空间…</div>}>{isConsole ? <ConsolePage /> : <HomePage />}</Suspense></ConfigProvider>;
+  }}><Suspense fallback={<div className="app-loading" role="status"><span />正在载入管理空间…</div>}>{isConsole ? <ConsolePage /> : <><HomePage /><Suspense fallback={null}><ProductFeedback /></Suspense></>}</Suspense></ConfigProvider>;
 }

@@ -55,8 +55,8 @@ export default function HomePage() {
     <header className="public-header"><div className="container header-inner"><Brand /><div className="header-actions"><nav aria-label="主导航"><a className="active" href="#query">IP 查询</a><a href="#api">API 文档</a><a href="#mcp">MCP 接入</a></nav><ThemeSwitcher /></div></div></header>
     <main>
       <section className="hero" id="query"><div className="hero-grid" aria-hidden="true" /><div className="container hero-content">
-        <div className="hero-copy"><div className="hero-pill"><span />AI 友好的 IP 工具站</div><h1><span>连接每个 IP</span>，<br />看见网络的更多信息。</h1><p>自动识别当前访问地址，比较不同数据库的归属地与网络信息。<br className="desktop-break" />从浏览器、命令行到 AI 智能体，让查询简单一点。<br className="desktop-break" />公开 MCP，无需登录，让智能体直接调用 IP 查询工具。</p>
-          <div className="hero-features"><span><Icon name="globe" size={16} />IPv4 / IPv6</span><span><Icon name="database" size={16} />多来源对照</span><span><Icon name="terminal" size={16} />公开 MCP</span></div>
+        <div className="hero-copy"><div className="hero-pill"><span />开源的 IP 聚合查询工具</div><h1><span>连接每个 IP</span>，<br />看见网络的更多信息。</h1><p>打开即查当前访问 IP，多来源对照归属地与网络信息。<br className="desktop-break" />复制结果与接入说明，用于浏览器、命令行和 AI 智能体。<br className="desktop-break" />支持 JSON / XML / TXT，以及无需登录的只读 MCP。</p>
+          <div className="hero-features"><span><Icon name="globe" size={16} />IPv4 / IPv6</span><span><Icon name="database" size={16} />多来源对照</span><span><Icon name="terminal" size={16} />HTTP / MCP</span></div>
         </div>
         <aside className="visitor-card" aria-label="本次访问 IP"><div className="visitor-top"><span className="visitor-globe"><Icon name="globe" size={22} /></span><span>本次访问 IP</span><Tag color={model.visitorState === 'identified' ? '#013187' : 'default'} variant="filled">{model.visitorState === 'loading' ? '识别中' : model.visitorState === 'identified' ? '已识别' : '未能识别'}</Tag></div>
           {/* IPv6 优先在冒号后换行；wbr 不改变复制内容或地址文本。 */}
@@ -73,13 +73,13 @@ export default function HomePage() {
         <p className="result-explainer"><Icon name="info" size={15} />IP 归属地由各数据库推断，可能存在差异；私有、回环等特殊地址不进行公网定位。</p>
       </section>
       <DeferredApiExamples providers={model.providers} queryReady={!model.loading && !model.providersLoading} />
-      <section className="principles"><div><span className="principle-icon"><Icon name="database" /></span><div><h3>来源清楚</h3><p>保留各来源状态、版本与实际字段</p></div></div><div><span className="principle-icon"><Icon name="shield" /></span><div><h3>信息有边界</h3><p>缺失信息如实显示，不拼成精确位置</p></div></div><div><span className="principle-icon"><Icon name="terminal" /></span><div><h3>适合你的工作流</h3><p>浏览器、脚本和服务使用统一接口</p></div></div></section>
+      <section className="principles"><div><span className="principle-icon"><Icon name="database" /></span><div><h3>多来源对照</h3><p>保留字段、状态与版本，差异与缺失如实展示</p></div></div><div><span className="principle-icon"><Icon name="copy" /></span><div><h3>复制即可使用</h3><p>复制字段、整卡结果、API 命令与 MCP 说明</p></div></div><div><span className="principle-icon"><Icon name="terminal" /></span><div><h3>面向脚本与 AI</h3><p>纯 IP、JSON / XML / TXT 与公开只读 MCP</p></div></div></section>
       </div>
     </main>
     <footer className="public-footer"><div className="container">
       <div className="footer-main"><span>通研信息 <span className="footer-dot">·</span> IP 聚合查询</span><span>让网络信息更清晰。</span><a href="#api">API 使用说明 <Icon name="arrow" size={14} /></a></div>
       <div className="footer-community">
-        <div className="community-links" aria-label="开源与反馈"><span>已开源，欢迎使用、提交代码与反馈。</span><a href={repositoryUrl} target="_blank" rel="noopener noreferrer"><Icon name="github" size={16} />GitHub 仓库</a><a href={`${repositoryUrl}/issues`} target="_blank" rel="noopener noreferrer">问题反馈 · Issues <Icon name="external" size={13} /></a></div>
+        <div className="community-links" aria-label="开源与反馈"><span>欢迎使用，提交 Issue 与 Pull Request。</span><a href={repositoryUrl} target="_blank" rel="noopener noreferrer"><Icon name="github" size={16} /><span>GitHub 仓库</span></a><a href={`${repositoryUrl}/issues`} target="_blank" rel="noopener noreferrer"><Icon name="external" size={16} /><span>问题反馈 · Issues</span></a></div>
         {/* 致谢复用官方 Logo，与既有署名一样随纯真启停展示，不依赖查询是否成功。 */}
         {cz88Provider ? <aside className="provider-thanks" aria-label="授权支持致谢"><ProviderLogo provider={cz88Provider} compact /><p>感谢 <a href={sourceVisuals.CZ88.homepage} target="_blank" rel="noopener noreferrer">纯真（CZ88.net）</a><br />给予本项目的授权支持。</p></aside> : null}
       </div>

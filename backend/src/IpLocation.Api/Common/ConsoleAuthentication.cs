@@ -90,6 +90,9 @@ public static class ConsoleAuthentication
         services.AddAuthorization();
         services.AddRateLimiter(options =>
         {
+            options.AddPolicy("support-feedback", context => RateLimitPartition.GetFixedWindowLimiter(
+                context.RequestServices.GetRequiredService<IClientIpService>().GetClientIp(context)?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
             // 仅对登录入口限流；分区使用已处理的可信地址，不能用客户端伪造头新建分区。
             options.AddPolicy("console-login", context => RateLimitPartition.GetFixedWindowLimiter(
                 context.RequestServices.GetRequiredService<IClientIpService>().GetClientIp(context)?.ToString() ?? "unknown",
@@ -98,8 +101,9 @@ public static class ConsoleAuthentication
             {
                 context.HttpContext.Response.StatusCode = 429;
                 context.HttpContext.Response.Headers.RetryAfter = "60";
-                await context.HttpContext.Response.WriteAsJsonAsync(ApiResult<object>.Fail("CONSOLE_LOGIN_RATE_LIMITED",
-                    "登录尝试过于频繁，请稍后重试。"), cancellationToken);
+                var support = context.HttpContext.Request.Path.StartsWithSegments("/api/support");
+                await context.HttpContext.Response.WriteAsJsonAsync(ApiResult<object>.Fail(support ? "FEEDBACK_RATE_LIMITED" : "CONSOLE_LOGIN_RATE_LIMITED",
+                    support ? "反馈请求过于频繁，请稍后重试。" : "登录尝试过于频繁，请稍后重试。"), cancellationToken);
             };
         });
         return services;

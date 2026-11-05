@@ -33,6 +33,8 @@ cd backend && dotnet build && dotnet test
 cd frontend && npm ci && npm run build && npm test
 ```
 
+后端测试会启动完整宿主；测试项目已通过模块初始化强制关闭产品心跳（`Support__TelemetryEnabled=false`），不会向官方服务注册测试安装。手动启动实例联调时如需关闭心跳，可设置 `Support__TelemetryEnabled=false`；产品运行默认开启，用于统计安装量。
+
 请在 Pull Request 中如实填写运行过的命令与结果；没有运行的项目不要声称通过。
 
 ## 提交 Pull Request

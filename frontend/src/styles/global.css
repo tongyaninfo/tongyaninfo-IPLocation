@@ -464,8 +464,9 @@
 
 /* 开源入口随页脚换行；使用外边距兼容不支持 flex gap 的旧浏览器。 */
 .community-links{display:flex;flex-wrap:wrap;align-items:center;margin:14px -10px -4px;line-height:1.8;color:var(--text-secondary)}
-.community-links>*{margin:4px 10px}.community-links a{display:inline-flex;align-items:center;color:var(--primary);min-height:32px}
-.community-links a svg:first-child{margin-right:6px}.community-links a svg:last-child:not(:first-child){margin-left:5px}
+.community-links>*{margin:4px 10px}.community-links a{display:inline-flex;align-items:center;color:var(--primary);min-height:32px;line-height:1.8;white-space:nowrap}
+/* 两个入口使用相同的前置图标尺寸与文字槽位，保持链接和文字中心线齐平。 */
+.community-links a svg{display:block;margin-right:6px}.community-links a>span{display:block}
 .community-links a:hover{text-decoration:underline;text-underline-offset:3px}
 @media(max-width:600px){.community-links>span{flex-basis:100%}}
 

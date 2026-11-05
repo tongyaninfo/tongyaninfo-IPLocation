@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+### 新增
+
+- 产品内反馈入口：文字 + 最终截图（标注/遮挡）+ 原始 WAV 录音，经同源 API 转发到官方服务，支持回执查询处理状态。
+- 安装心跳客户端：默认开启、每 5 分钟一次的安装级心跳与持久随机安装 GUID；后台“系统设置 → 产品遥测”可查看状态并关闭。
+- `backend/vendor/tongyan-support/` 内嵌 `Tongyan.Support.Client` 与 `Tongyan.Telemetry` 源码；服务器端接收实现不在本仓库。
+- 后端反馈转发端点、后台遥测设置接口与心跳后台服务；反馈请求按来源限流。
+
+### 变更
+
+- 测试进程强制关闭心跳（`Support__TelemetryEnabled=false` 模块初始化与 CI 环境变量），避免测试污染官方统计；产品默认值保持不变。
+- Docker Compose 新增 `/support` 状态目录与环境变量 `Support__StateDirectory`，与部署一起备份。
+
+
 ## [0.1.0] - 2026-11-04
 
 首个开源版本。

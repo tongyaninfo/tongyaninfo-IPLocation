@@ -49,6 +49,7 @@ services:
       IdGeneration__WorkerId: "1"
       ConsoleAuth__KeyRingPath: /keys
       Uploads__StorageRoot: /uploads
+      Support__StateDirectory: /support
       DbIp__Enabled: "true"
       DbIp__DatabasePath: /data/dbip/dbip-city-lite-2026-11.mmdb
       IP2Location__Enabled: "true"
@@ -68,6 +69,8 @@ services:
       - ./data:/data:ro
       - ./keys:/keys
       - ./uploads:/uploads
+      # 安装身份独立于只读来源库，必须与此部署一起备份和恢复。
+      - ./support:/support
     networks:
       - internal
 

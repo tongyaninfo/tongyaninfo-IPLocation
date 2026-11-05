@@ -46,6 +46,19 @@ builder.Services.AddAccessLogging(builder.Configuration);
 builder.Services.AddPostgreSqlPersistence(builder.Configuration);
 builder.Services.AddConsoleAuthentication(builder.Configuration, builder.Environment);
 builder.Services.AddSingleton<IConsoleRuntimeSettings, ConsoleRuntimeSettings>();
+// 公共查询站按服务端安装实例计数，浏览器访客不会各自生成安装身份。
+builder.Services.AddSingleton(new Tongyan.Support.Client.Models.SupportOptions("ip",
+    // 尚无统一后端版本源，不能把 SDK 默认程序集版本或前端包版本冒充产品发布版本。
+    builder.Configuration["Support:ProductVersion"] ?? "unknown",
+    builder.Configuration["Support:StateDirectory"] ?? Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tongyan", "IpLocation", "support"),
+    Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true" ? "docker" : "server",
+    new Uri("https://api.tongyaninfo.com"), builder.Configuration.GetValue("Support:TelemetryEnabled", true)));
+builder.Services.AddSingleton(services => new Tongyan.Support.Client.Service.ProductSupportClient(
+    services.GetRequiredService<Tongyan.Support.Client.Models.SupportOptions>(), services.GetRequiredService<IHttpClientFactory>().CreateClient("TongyanSupport")));
+builder.Services.AddHttpClient("TongyanSupport", client => client.Timeout = TimeSpan.FromSeconds(8))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false }).RemoveAllLoggers();
+builder.Services.AddHostedService<IpLocation.Api.Workers.SupportHeartbeatWorker>();
 builder.Services.AddScoped<IConsoleSettingsService, ConsoleSettingsService>();
 builder.Services.AddOptions<TrustedProxyOptions>().Bind(builder.Configuration.GetSection("TrustedProxies"));
 builder.Services.AddScoped<IConsoleReadService, ConsoleReadService>();

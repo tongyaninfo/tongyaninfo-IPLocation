@@ -34,6 +34,9 @@ jobs:
         run: dotnet build backend/IpLocation.slnx --nologo -p:UseSharedCompilation=false -m:1 -nr:false
 
       - name: 测试
+        env:
+          # 测试环境强制关闭产品安装心跳，避免向官方服务注册测试安装或污染统计。
+          Support__TelemetryEnabled: "false"
         run: dotnet test backend/tests/IpLocation.Api.Tests/IpLocation.Api.Tests.csproj --nologo -p:UseSharedCompilation=false -m:1 -nr:false
 
       - name: 离线迁移 SQL 一致性

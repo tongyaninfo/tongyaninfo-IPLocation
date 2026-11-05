@@ -26,6 +26,8 @@
 - **适合脚本与应用**：curl / wget 直接返回纯 IP；结构化查询支持 JSON、XML、TXT 和指定来源或全部来源。
 - **AI 友好**：公开 MCP 无需登录、API Key 或 Token，提供三个只读工具和结构化结果，让智能体调用查询与来源目录。
 - **便于维护**：受保护后台提供来源启停 / 排序、上传与版本激活、访问和 MCP 调用记录、运行趋势与管理审计。
+- **产品反馈**：内置反馈入口，可提交文字、最终截图与 WAV 录音，并通过回执查询处理状态。
+- **安装心跳**：默认每 5 分钟发送安装心跳用于统计用户量，可在后台或通过环境变量关闭自动上报。
 
 支持的来源适配器：DB-IP City Lite、纯真 QQWry、IP2Location LITE DB11、ip2region、IPinfo Lite，以及默认停用的 MaxMind GeoLite2 City。具体启用状态、地址族与覆盖范围以实际部署和已配置的数据文件为准。
 
@@ -113,11 +115,20 @@ HTTP 查询省略 `db` 默认使用 `dbip`，省略 `format` 默认 JSON；MCP �
 
 工具业务内容沿用 `success / code / message / data`，便于处理部分结果和来源差异。云端 MCP 客户端的“我的 IP”可能是云服务出口；本站的 AI 支持指工具接入，不内置聊天模型。详见 [MCP 接口](docs/api/MCP接口.md)。
 
+## 产品反馈与安装心跳
+
+产品内置反馈入口：可提交最多 2000 字说明、最多 3 张经确认的最终截图（可画笔、框、箭头、遮挡）与最多 3 段原始 WAV 录音（每段不超过 3 分钟），不做 AI 转写或翻译。反馈通过本产品同源 API 转发到官方服务；回执查询码只通过 POST 正文发送，不进入地址栏，公共反馈回执保存在当前标签会话。
+
+运行心跳由产品后端默认启用（`Support:TelemetryEnabled` 默认 `true`）：首次启动注册安装身份并发送心跳，之后每 5 分钟一次。安装身份为持久随机 GUID，仅上报产品标识、安装 ID、产品版本、操作系统、CPU 架构、分发渠道与心跳时间，不包含查询内容、访问地址或业务数据。管理员可在后台“系统设置 → 产品遥测”查看状态并关闭自动上报，也可用环境变量 `Support__TelemetryEnabled=false` 强制关闭；关闭后仍可主动提交反馈。服务器端接收实现不在本仓库，由官方服务提供。
+
+> 本地测试或联调建议设置 `Support__TelemetryEnabled=false`；`dotnet test` 已通过测试隔离强制关闭，避免注册测试安装或污染统计。
+
 ## 隐私默认值
 
 - 访问日志默认 **不保存完整来源 IP**（`AccessLogging:RetainFullSourceIp=false`），按 IPv4 /24、IPv6 /48 脱敏；如需完整 IP，请自行评估隐私与合规要求后显式开启。
 - 请求头采集使用有界白名单快照，过滤 `Cookie`、`Authorization` 等凭据头，`Referer` 去除账户、查询串和片段。
 - 示例与测试数据统一使用 RFC 5737 文档网段；仓库不包含任何真实凭据、生产主机或内网地址。
+- 产品安装心跳默认开启，仅上报安装级元数据（不含 PII 或查询内容），支持后台与环境变量关闭；测试进程强制关闭。
 
 ## 构建与测试
 
@@ -161,7 +172,7 @@ CI 配置见 [.github/workflows/ci.yml](.github/workflows/ci.yml)。
 
 ## English Summary
 
-IPLocation is an open-source IP aggregation lookup service (Apache-2.0). It provides a responsive web UI, curl/wget-friendly plain-IP responses, JSON/XML/TXT query APIs, a public read-only MCP endpoint, and a protected admin console. .NET 10 backend, React 19 + Vite frontend, optional PostgreSQL persistence; IP databases (DB-IP Lite, IP2Location LITE, ip2region, IPinfo Lite, Chunzhen, MaxMind GeoLite2) are **not** bundled and must be obtained separately under their own licenses. See [docs/README.en.md](docs/README.en.md) for details and [NOTICE](NOTICE) for data-source attribution.
+IPLocation is an open-source IP aggregation lookup service (Apache-2.0). It provides a responsive web UI, curl/wget-friendly plain-IP responses, JSON/XML/TXT query APIs, a public read-only MCP endpoint, and a protected admin console. .NET 10 backend, React 19 + Vite frontend, optional PostgreSQL persistence; IP databases (DB-IP Lite, IP2Location LITE, ip2region, IPinfo Lite, Chunzhen, MaxMind GeoLite2) are **not** bundled and must be obtained separately under their own licenses. The product also ships an in-app feedback entry and an install heartbeat that is enabled by default (5-minute interval, installation-level metadata only, can be disabled via configuration). See [docs/README.en.md](docs/README.en.md) for details and [NOTICE](NOTICE) for data-source attribution.
 
 ## 许可
 

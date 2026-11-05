@@ -10,7 +10,7 @@ export class ApiConnectionError extends Error {
 }
 
 interface ApiRequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PUT';
   body?: unknown;
   csrfToken?: string;
 }
@@ -19,13 +19,13 @@ interface ApiRequestOptions {
 export async function requestApi<T>(path: string, signal?: AbortSignal, options: ApiRequestOptions = {}): Promise<ApiResponse<T>> {
   let response: Response;
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+  if (options.body !== undefined && !(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
   if (options.csrfToken) headers['X-CSRF-TOKEN'] = options.csrfToken;
   try {
     response = await fetch(path, {
       headers,
       method: options.method ?? 'GET',
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.body instanceof FormData ? options.body : options.body === undefined ? undefined : JSON.stringify(options.body),
       credentials: 'same-origin',
       cache: 'no-store',
       signal,
