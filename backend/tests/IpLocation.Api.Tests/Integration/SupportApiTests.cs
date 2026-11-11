@@ -4,7 +4,6 @@ using System.Text.Json;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Tongyan.Support.Client.Models;
 using Tongyan.Support.Client.Service;
 
 namespace IpLocation.Api.Tests.Integration;
@@ -13,45 +12,21 @@ namespace IpLocation.Api.Tests.Integration;
 public sealed class SupportApiTests
 {
     [Fact]
-    public async Task TelemetryChangeRequiresReliableIntentAuditAndRecordsActualOutcome()
+    public async Task StartingHostAndQueryingIpDoNotCreateSupportIdentityOrContactRemote()
     {
-        var identities = new ControlledIdentityStore { Account = ControlledIdentityStore.CreateAccount() };
         using var remote = new SupportRemote();
         using var http = new HttpClient(remote);
-        var directory = Path.Combine(OperatingSystem.IsMacOS() ? "/private/tmp" : Path.GetTempPath(), "ip-support-audit-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(OperatingSystem.IsMacOS() ? "/private/tmp" : Path.GetTempPath(), "ip-support-passive-" + Guid.NewGuid().ToString("N"));
         var support = new ProductSupportClient(new("ip", "unknown", directory, "server", new Uri("https://support.invalid")), http);
-        await using var factory = new ProtocolFactory(connectionAddress: "127.0.0.1", identities: identities)
+        await using var factory = new ProtocolFactory()
             .WithWebHostBuilder(builder => builder.ConfigureTestServices(services => services.Replace(ServiceDescriptor.Singleton(support))));
         using var client = factory.CreateClient();
-        async Task<string> Csrf()
-        {
-            using var response = await client.GetAsync("/api/console/auth/csrf");
-            using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-            return body.RootElement.GetProperty("data").GetProperty("token").GetString()!;
-        }
-        using var login = new HttpRequestMessage(HttpMethod.Post, "/api/console/auth/login")
-        { Content = JsonContent.Create(new { account = "fixture-admin", password = ControlledIdentityStore.Password }) };
-        login.Headers.Add("X-CSRF-TOKEN", await Csrf());
-        using var loggedIn = await client.SendAsync(login);
-        Assert.Equal(HttpStatusCode.OK, loggedIn.StatusCode);
-        var token = await Csrf();
-        async Task<HttpResponseMessage> Toggle()
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Put, "/api/console/support/telemetry")
-            { Content = JsonContent.Create(new { enabled = false }) };
-            request.Headers.Add("X-CSRF-TOKEN", token);
-            return await client.SendAsync(request);
-        }
-        identities.FailWrites = true;
-        using var denied = await Toggle();
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, denied.StatusCode);
-        Assert.True((await support.StatusAsync(true, default)).TelemetryEnabled);
-        identities.FailWrites = false;
-        using var allowed = await Toggle();
-        Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
-        Assert.False((await support.StatusAsync(true, default)).TelemetryEnabled);
-        Assert.Contains(identities.Audits, item => item.Action == "Support.Telemetry.Update" && item.Result == "intent");
-        Assert.Contains(identities.Audits, item => item.Action == "Support.Telemetry.Update" && item.Result == "success");
+        using var health = await client.GetAsync("/health");
+        using var address = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.OK, health.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, address.StatusCode);
+        Assert.Empty(remote.Paths);
+        Assert.False(Directory.Exists(directory));
     }
 
     [Fact]
@@ -60,7 +35,7 @@ public sealed class SupportApiTests
         using var remote = new SupportRemote();
         using var http = new HttpClient(remote);
         var directory = Path.Combine(OperatingSystem.IsMacOS() ? "/private/tmp" : Path.GetTempPath(), "ip-support-api-" + Guid.NewGuid().ToString("N"));
-        var support = new ProductSupportClient(new("ip", "1.0.0", directory, "server", new Uri("https://support.invalid"), false), http);
+        var support = new ProductSupportClient(new("ip", "1.0.0", directory, "server", new Uri("https://support.invalid")), http);
         await using var factory = new ProtocolFactory().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             services.Replace(ServiceDescriptor.Singleton(support))));
         using var client = factory.CreateClient();
@@ -72,13 +47,12 @@ public sealed class SupportApiTests
         Assert.DoesNotContain("installationSecret", await submitted.Content.ReadAsStringAsync());
         using var lookup = await client.PostAsJsonAsync("/api/support/feedback/by-request/" + requestId + "/lookup", new { receiptToken = receipt });
         Assert.Equal(HttpStatusCode.OK, lookup.StatusCode);
-        Assert.Contains("/by-request/", remote.LastPath);
-        Assert.DoesNotContain("?", remote.LastPath);
+        Assert.Equal([
+            "/api/products/v1/installations/register",
+            "/api/feedback/v1/tickets",
+            $"/api/feedback/v1/tickets/by-request/{requestId:D}/receipt"
+        ], remote.Paths);
         Assert.Equal(receipt, JsonDocument.Parse(remote.LastBody!).RootElement.GetProperty("receiptToken").GetString());
-        Assert.DoesNotContain(remote.Paths, path => path.EndsWith("/heartbeats"));
-        // 公共访客不能借支持接口读取整个安装的配置或反馈列表。
-        using var hidden = await client.GetAsync("/api/console/support/status");
-        Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
     }
 
     [Fact]
@@ -87,7 +61,7 @@ public sealed class SupportApiTests
         using var remote = new SupportRemote();
         using var http = new HttpClient(remote);
         var directory = Path.Combine(OperatingSystem.IsMacOS() ? "/private/tmp" : Path.GetTempPath(), "ip-support-denied-" + Guid.NewGuid().ToString("N"));
-        var support = new ProductSupportClient(new("ip", "1.0.0", directory, "server", new Uri("https://support.invalid"), false), http);
+        var support = new ProductSupportClient(new("ip", "1.0.0", directory, "server", new Uri("https://support.invalid")), http);
         await using var factory = new ProtocolFactory().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             services.Replace(ServiceDescriptor.Singleton(support))));
         using var client = factory.CreateClient();
@@ -104,7 +78,6 @@ public sealed class SupportApiTests
     private sealed class SupportRemote : HttpMessageHandler
     {
         public List<string> Paths { get; } = [];
-        public string LastPath => Paths.Last();
         public byte[]? LastBody { get; private set; }
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {

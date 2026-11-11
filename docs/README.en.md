@@ -121,11 +121,11 @@ The admin console provides operational trends, source enabling and ordering, dat
 
 `/console`, the login entry point, admin APIs, and dedicated resources are protected by a server-side IP allowlist, administrator authentication, and anti-forgery checks for write requests. Ordinary access and MCP calls are recorded asynchronously through a bounded queue. The console shows backlog, dropped events, and write failures; these records may have gaps. Access records store source IPs redacted by network by default (full IPs can be enabled by configuration) and redacted request paths. MCP records additionally contain bounded, redacted input/output snapshots. Reading these records is restricted to the protected admin console. See the [admin API contract](api/后台管理接口.md) for the complete capabilities and collection boundaries.
 
-## Product feedback and install heartbeat
+## Product feedback
 
 The homepage includes an in-app feedback entry for text, confirmed final screenshots, and raw WAV recordings, with no AI transcription or translation. Feedback is relayed through the product's same-origin API to the official service; receipt tokens travel only in POST bodies, and public receipts are kept in the current tab session.
 
-The install heartbeat is enabled by default and sent every five minutes to count installations. It reports only the product identifier, installation ID, product version, operating system, CPU architecture, distribution channel, and heartbeat time; it never includes query content or visitor addresses. Administrators can review and disable automatic reporting under “产品遥测” in the console, or set `Support:TelemetryEnabled=false`. The server-side receiving implementation is not part of this repository.
+An installation identity is created only when the user actively submits feedback. The product sends no automatic install heartbeat or usage statistics while it is running. The server-side receiving implementation is not part of this repository.
 
 ## Run locally
 

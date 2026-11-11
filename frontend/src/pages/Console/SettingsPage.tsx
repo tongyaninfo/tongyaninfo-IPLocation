@@ -4,7 +4,6 @@ import { getSettings, saveSettings } from '../../services/console/api';
 import { useConsoleAction, useConsoleResource } from '../../models/ConsoleContext';
 import type { ConsoleBasicSettings, QuerySettings } from '../../types/console';
 import { ActionMessage, ConsolePanel, RefreshButton, ResourceState } from './ConsoleShared';
-import { ProductTelemetrySettings } from '../../components/ProductFeedback';
 
 export function SettingsPage() {
   const loader = useCallback((signal: AbortSignal) => getSettings(signal), []);
@@ -26,7 +25,6 @@ export function SettingsPage() {
   return <>
     <div className="console-toolbar"><span className="console-muted">查询、白名单和日志策略即时生效；队列容量重启后生效。</span><RefreshButton onClick={resource.reload} loading={resource.loading} /></div>
     <ActionMessage {...action} /><ResourceState {...resource} />
-    <ConsolePanel title="产品遥测" subtitle="安装标识与官网反馈使用相同关联，自动上报可由管理员关闭。"><ProductTelemetrySettings /></ConsolePanel>
     {resource.data && query && basic && runtime ? <form aria-label="系统设置表单" onSubmit={event => {
       event.preventDefault();
       const current = resource.data!;

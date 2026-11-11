@@ -268,12 +268,6 @@
       },
       "tongyan.support.client": {
         "type": "Project"
-      },
-      "tongyan.telemetry": {
-        "type": "Project",
-        "dependencies": {
-          "Tongyan.Support.Client": "[1.0.0, )"
-        }
       }
     }
   }

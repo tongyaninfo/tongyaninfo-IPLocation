@@ -6,7 +6,9 @@
     <RootNamespace>IpLocation.Api</RootNamespace>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="../../vendor/tongyan-support/telemetry-sdk-dotnet/Tongyan.Telemetry.csproj" /></ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../vendor/tongyan-support/support-client/Tongyan.Support.Client.csproj" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="IP2Region.Net" Version="3.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />

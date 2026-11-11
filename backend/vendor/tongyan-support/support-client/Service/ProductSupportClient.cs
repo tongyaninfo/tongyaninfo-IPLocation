@@ -14,49 +14,8 @@ public sealed class ProductSupportClient(SupportOptions options, HttpClient http
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private readonly InstallationStore store = new(options);
     private readonly SemaphoreSlim registration = new(1, 1);
-    private readonly object heartbeatStatusGate = new();
-    private DateTimeOffset? lastHeartbeat;
-    private string? heartbeatError;
     public const int MaximumImageBytes = 10 * 1024 * 1024;
     public const int MaximumAudioBytes = 8 * 1024 * 1024;
-
-    public async Task<SupportStatus> StatusAsync(bool canManage, CancellationToken ct)
-    {
-        var state = await store.ReadAsync(ct);
-        lock (heartbeatStatusGate)
-            return new(state.InstallationId, options.TelemetryEnabled && state.TelemetryEnabled, options.Product, options.ProductVersion,
-                lastHeartbeat, heartbeatError, canManage && options.TelemetryEnabled);
-    }
-
-    public async Task<SupportStatus> SetTelemetryAsync(bool enabled, CancellationToken ct)
-    {
-        await store.UpdateAsync(state => state with { TelemetryEnabled = enabled && options.TelemetryEnabled }, ct);
-        return await StatusAsync(true, ct);
-    }
-
-    /// <summary>停用状态不注册、不发请求；心跳只表示当前发送时刻，不缓存历史。</summary>
-    public async Task HeartbeatAsync(Guid sessionId, CancellationToken ct)
-    {
-        try
-        {
-            // 运维配置是强制关闭开关，不能被以前持久化的开启状态覆盖。
-            if (!options.TelemetryEnabled) return;
-            var state = await store.ReadAsync(ct);
-            if (!state.TelemetryEnabled) return;
-            var body = Serialize(new { heartbeatId = Guid.NewGuid(), sessionId, occurredAt = DateTimeOffset.UtcNow,
-                productVersion = options.ProductVersion, os = Os(), arch = Arch(), distribution = options.Distribution });
-            var response = await SendJsonAsync("/api/telemetry/v1/heartbeats", body, automatic: true, ct);
-            lock (heartbeatStatusGate)
-            {
-                if (response.StatusCode is >= 200 and < 300 && response.Body.GetProperty("success").ValueKind == JsonValueKind.True)
-                { lastHeartbeat = DateTimeOffset.UtcNow; heartbeatError = null; }
-                else heartbeatError = response.Body.TryGetProperty("code", out var code) ? code.GetString() : "SUPPORT_UNAVAILABLE";
-            }
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or HttpRequestException or TaskCanceledException)
-        { lock (heartbeatStatusGate) heartbeatError = exception is IOException or UnauthorizedAccessException or JsonException ? "SUPPORT_IDENTITY_UNAVAILABLE" : "SUPPORT_UNAVAILABLE"; }
-    }
 
     public Task<SupportResponse> SubmitAsync(FeedbackInput input, CancellationToken ct)
     {
@@ -67,17 +26,17 @@ public sealed class ProductSupportClient(SupportOptions options, HttpClient http
             (string.IsNullOrWhiteSpace(input.Description) && input.AttachmentIds.Length == 0))
             return Task.FromResult(SupportResponse.Failure(400, "FEEDBACK_INVALID", "请检查反馈文字、附件和回执。"));
         return SendJsonAsync("/api/feedback/v1/tickets", Serialize(new { input.ClientRequestId, input.ReceiptToken,
-            input.Category, input.Title, input.Description, productVersion = options.ProductVersion, input.AttachmentIds }), false, ct);
+            input.Category, input.Title, input.Description, productVersion = options.ProductVersion, input.AttachmentIds }), ct);
     }
 
     public Task<SupportResponse> LookupAsync(string feedbackId, ReceiptInput input, CancellationToken ct) =>
         ValidId(feedbackId) && ValidReceipt(input.ReceiptToken)
-            ? SendJsonAsync($"/api/feedback/v1/tickets/{feedbackId}/receipt", Serialize(input), false, ct)
+            ? SendJsonAsync($"/api/feedback/v1/tickets/{feedbackId}/receipt", Serialize(input), ct)
             : Task.FromResult(SupportResponse.Failure(400, "FEEDBACK_RECEIPT_INVALID", "反馈编号或回执无效。"));
 
     public Task<SupportResponse> LookupByRequestAsync(Guid requestId, ReceiptInput input, CancellationToken ct) =>
         requestId != Guid.Empty && ValidReceipt(input.ReceiptToken)
-            ? SendJsonAsync($"/api/feedback/v1/tickets/by-request/{requestId:D}/receipt", Serialize(input), false, ct)
+            ? SendJsonAsync($"/api/feedback/v1/tickets/by-request/{requestId:D}/receipt", Serialize(input), ct)
             : Task.FromResult(SupportResponse.Failure(400, "FEEDBACK_RECEIPT_INVALID", "反馈请求号或回执无效。"));
 
     /// <summary>使用有界原始文件正文签名，中央再次核验文件魔数、图像尺寸与 WAV 时长。</summary>
@@ -86,7 +45,7 @@ public sealed class ProductSupportClient(SupportOptions options, HttpClient http
         if (attachmentId == Guid.Empty || bytes.Length == 0 || contentType is not ("image/png" or "image/jpeg" or "audio/wav") ||
             bytes.Length > (contentType == "audio/wav" ? MaximumAudioBytes : MaximumImageBytes))
             return SupportResponse.Failure(400, "FEEDBACK_ATTACHMENT_INVALID", "仅支持大小有界的 PNG、JPEG 和 WAV 附件。");
-        return await SendAsync($"/api/feedback/v1/attachments/{attachmentId:D}", bytes, contentType, false, ct);
+        return await SendAsync($"/api/feedback/v1/attachments/{attachmentId:D}", bytes, contentType, ct);
     }
 
     public async Task<SupportMediaResponse> DownloadAsync(string feedbackId, Guid attachmentId, ReceiptInput input, CancellationToken ct)
@@ -95,7 +54,7 @@ public sealed class ProductSupportClient(SupportOptions options, HttpClient http
             return new(400, [], "application/json", SupportResponse.Failure(400, "FEEDBACK_RECEIPT_INVALID", "反馈回执无效。").Body);
         try
         {
-            var registered = await EnsureRegisteredAsync(false, ct);
+            var registered = await EnsureRegisteredAsync(ct);
             if (registered is not null) return new(registered.StatusCode, [], "application/json", registered.Body);
             var state = await store.ReadAsync(ct);
             var path = $"/api/feedback/v1/tickets/{feedbackId}/attachments/{attachmentId:D}/receipt";
@@ -111,19 +70,18 @@ public sealed class ProductSupportClient(SupportOptions options, HttpClient http
         { return new(503, [], "application/json", Failure().Body); }
     }
 
-    private Task<SupportResponse> SendJsonAsync(string path, byte[] bytes, bool automatic, CancellationToken ct) =>
-        SendAsync(path, bytes, "application/json", automatic, ct);
+    private Task<SupportResponse> SendJsonAsync(string path, byte[] bytes, CancellationToken ct) =>
+        SendAsync(path, bytes, "application/json", ct);
 
-    private async Task<SupportResponse> SendAsync(string path, byte[] bytes, string contentType, bool automatic, CancellationToken ct)
+    private async Task<SupportResponse> SendAsync(string path, byte[] bytes, string contentType, CancellationToken ct)
     {
         try
         {
-            var registered = await EnsureRegisteredAsync(automatic, ct);
+            var registered = await EnsureRegisteredAsync(ct);
             if (registered is not null) return registered;
             for (var attempt = 0; attempt < 2; attempt++)
             {
                 var state = await store.ReadAsync(ct);
-                if (automatic && (!options.TelemetryEnabled || !state.TelemetryEnabled)) return SupportResponse.Failure(409, "TELEMETRY_DISABLED", "自动遥测已关闭。");
                 using var request = Signed(path, bytes, contentType, state);
                 try
                 {
@@ -131,7 +89,7 @@ public sealed class ProductSupportClient(SupportOptions options, HttpClient http
                     var body = Parse(await ReadBoundedAsync(response.Content, 256 * 1024, ct));
                     if (attempt == 0 && (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable || response.StatusCode == System.Net.HttpStatusCode.TooManyRequests))
                     {
-                        // 短时退避有上限；不在队列补发旧心跳，也不无限等待 Retry-After。
+                        // 仅在当前反馈请求内短时重试，限制 Retry-After 等待时间。
                         var delay = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(1);
                         if (delay > TimeSpan.FromSeconds(3)) return new((int)response.StatusCode, body);
                         await Task.Delay(delay < TimeSpan.Zero ? TimeSpan.Zero : delay, ct);
@@ -148,13 +106,12 @@ public sealed class ProductSupportClient(SupportOptions options, HttpClient http
         { return Failure(); }
     }
 
-    private async Task<SupportResponse?> EnsureRegisteredAsync(bool automatic, CancellationToken ct)
+    private async Task<SupportResponse?> EnsureRegisteredAsync(CancellationToken ct)
     {
         await registration.WaitAsync(ct);
         try
         {
             var state = await store.ReadAsync(ct);
-            if (automatic && (!options.TelemetryEnabled || !state.TelemetryEnabled)) return SupportResponse.Failure(409, "TELEMETRY_DISABLED", "自动遥测已关闭。");
             if (state.Registered) return null;
             var body = Serialize(new { product = options.Product, state.InstallationId, state.InstallationSecret,
                 productVersion = options.ProductVersion, os = Os(), arch = Arch(), distribution = options.Distribution });

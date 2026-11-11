@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageEditor } from './ImageEditor';
-import { createReceiptToken, createRequestId, formatSupportDate, SupportRequestError } from './types';
-import type { FeedbackCategory, FeedbackReceipt, FeedbackSubmission, FeedbackTransport, SupportStatus } from './types';
+import { createReceiptToken, createRequestId, SupportRequestError } from './types';
+import type { FeedbackCategory, FeedbackReceipt, FeedbackSubmission, FeedbackTransport } from './types';
 import { microphoneUnavailableReason, useWavRecorder } from './useWavRecorder';
 import './styles.css';
 
@@ -34,57 +34,16 @@ function rememberReceipt(key: string, value: ReceiptRecord) {
   try { sessionStorage.setItem(key, JSON.stringify(value)); } catch { /* 存储受限仍允许当前页面提交和复制回执。 */ }
 }
 
-export function SupportSettings({ transport }: { transport: FeedbackTransport }) {
-  const [status, setStatus] = useState<SupportStatus | null>(null);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [revision, setRevision] = useState(0);
-  const action = useRef<AbortController | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    if (transport.status) {
-      setError(''); setStatus(null);
-      void transport.status(controller.signal).then(value => { if (!controller.signal.aborted) setStatus(value); })
-        .catch(failure => { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : '读取运行设置失败。'); });
-    }
-    return () => { controller.abort(); action.current?.abort(); };
-  }, [transport, revision]);
-  return <section className="ty-feedback-setting" aria-label="产品遥测设置">
-    <h3>产品运行心跳</h3>
-    <p>默认开启，每 5 分钟发送运行心跳。关闭后停止自动上报，仍可主动提交反馈。</p>
-    {error && <p className="ty-feedback-error" role="alert">{error}</p>}
-    {!status && !error && <p role="status">正在读取设置…</p>}
-    {status && <>
-      <label><input type="checkbox" checked={status.telemetryEnabled} disabled={busy || !status.canManageTelemetry || !transport.setTelemetry} onChange={event => {
-        if (!transport.setTelemetry || busy) return;
-        const enabled = event.target.checked;
-        const controller = new AbortController(); action.current = controller;
-        setBusy(true); setError('');
-        void transport.setTelemetry(enabled, controller.signal).then(value => { if (!controller.signal.aborted) setStatus(value); })
-          .catch(failure => { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : '保存失败。'); })
-          .finally(() => { if (!controller.signal.aborted) setBusy(false); });
-      }} /><span>启用产品运行心跳</span></label>
-      {!status.canManageTelemetry && <small>只有本产品管理员可以修改此设置。</small>}
-      <small>安装标识：<code>{status.installationId}</code></small>
-      <small>版本：{!status.productVersion || status.productVersion === 'unknown' ? '未标记版本' : status.productVersion}</small>
-      <small>最近心跳成功：{status.lastHeartbeatAt ? formatSupportDate(status.lastHeartbeatAt) : '尚无成功记录'}</small>
-      {(status.errorCode || status.lastHeartbeatError) && <small>最近上报状态：{status.errorCode || status.lastHeartbeatError}</small>}
-    </>}
-    <button type="button" disabled={busy} onClick={() => setRevision(value => value + 1)}>刷新运行设置</button>
-  </section>;
-}
-
 /** 账号由宿主隔离；安装标识只由产品后端补充，不以机器 ID 查询公开反馈列表。 */
-export default function FeedbackWidget({ transport, product, scope, showTelemetry = false, theme }: {
+export default function FeedbackWidget({ transport, product, scope, theme }: {
   transport: FeedbackTransport;
   product: string;
   scope: string;
-  showTelemetry?: boolean;
   theme?: 'light' | 'dark';
 }) {
   const storageKey = `tongyan.feedback.receipt.${product}.${scope}`;
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<'new' | 'receipt' | 'settings'>('new');
+  const [tab, setTab] = useState<'new' | 'receipt'>('new');
   const [category, setCategory] = useState<FeedbackCategory>('bug');
   const [description, setDescription] = useState('');
   const [media, setMedia] = useState<Media[]>([]);
@@ -220,7 +179,7 @@ export default function FeedbackWidget({ transport, product, scope, showTelemetr
     {!open && <button ref={trigger} type="button" className="ty-feedback-trigger ty-feedback-primary" onClick={() => setOpen(true)}>意见反馈</button>}
     {open && <div ref={panel} className="ty-feedback-panel" role="dialog" aria-modal="false" aria-label="产品意见反馈" tabIndex={-1}>
       <div className="ty-feedback-header"><h2>意见反馈</h2><button type="button" onClick={close} aria-label="关闭反馈面板">关闭</button></div>
-      <nav className="ty-feedback-row" aria-label="反馈功能"><button type="button" aria-pressed={tab === 'new'} onClick={() => setTab('new')}>提交反馈</button><button type="button" aria-pressed={tab === 'receipt'} onClick={() => setTab('receipt')}>反馈回执</button>{showTelemetry && <button type="button" aria-pressed={tab === 'settings'} onClick={() => setTab('settings')}>运行设置</button>}</nav>
+      <nav className="ty-feedback-row" aria-label="反馈功能"><button type="button" aria-pressed={tab === 'new'} onClick={() => setTab('new')}>提交反馈</button><button type="button" aria-pressed={tab === 'receipt'} onClick={() => setTab('receipt')}>反馈回执</button></nav>
       {error && <p className="ty-feedback-error" role="alert">{error}</p>}
       {busy && <p role="status">{busy}</p>}
       {tab === 'new' && (editing ? <ImageEditor source={editing} onCancel={() => setEditing(null)} onSave={blob => {
@@ -254,7 +213,6 @@ export default function FeedbackWidget({ transport, product, scope, showTelemetr
         {receipt && <div className="ty-feedback-note"><strong>处理状态：{statuses[receipt.status] || receipt.status}</strong><p>{receipt.publicReply || receipt.reply || '暂未收到公开回复。'}</p></div>}
         <details><summary>使用已保存的单条回执查询</summary><label><span>反馈编号</span><input type="text" value={lookupId} onChange={event => setLookupId(event.target.value)} /></label><label><span>回执查询码</span><input type="text" value={lookupToken} autoComplete="off" onChange={event => setLookupToken(event.target.value)} /></label><button type="button" disabled={!!busy || !lookupId.trim() || !/^[a-f0-9]{64}$/.test(lookupToken)} onClick={() => void lookup(lookupId.trim(), lookupToken)}>查询此条反馈</button></details>
       </>}
-      {tab === 'settings' && showTelemetry && <SupportSettings transport={transport} />}
     </div>}
   </div>;
 }

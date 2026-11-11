@@ -15,23 +15,11 @@ export interface FeedbackReceipt {
   publicReply?: string | null;
   updatedAt?: string | null;
 }
-export interface SupportStatus {
-  installationId: string;
-  telemetryEnabled: boolean;
-  product: string;
-  productVersion: string;
-  canManageTelemetry: boolean;
-  lastHeartbeatAt?: string | null;
-  lastHeartbeatError?: string | null;
-  errorCode?: string | null;
-}
 export interface FeedbackTransport {
   upload: (id: string, file: File, signal: AbortSignal) => Promise<{ attachmentId: string }>;
   submit: (request: FeedbackSubmission, signal: AbortSignal) => Promise<FeedbackReceipt>;
   lookup: (id: string, receiptToken: string, signal: AbortSignal) => Promise<FeedbackReceipt>;
   lookupByRequest: (id: string, receiptToken: string, signal: AbortSignal) => Promise<FeedbackReceipt>;
-  status?: (signal: AbortSignal) => Promise<SupportStatus>;
-  setTelemetry?: (enabled: boolean, signal: AbortSignal) => Promise<SupportStatus>;
 }
 export class SupportRequestError extends Error {
   constructor(message: string, public readonly status = 0) { super(message); }
@@ -49,8 +37,3 @@ export function createReceiptToken(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export function formatSupportDate(value: string): string {
-  const parts = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(value));
-  const get = (name: Intl.DateTimeFormatPartTypes) => parts.find(part => part.type === name)?.value || '';
-  return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
-}

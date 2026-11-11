@@ -68,13 +68,13 @@
 - 请求数、首页 HTML 访问、纯 IP 调用、逻辑查询、来源调用分别统计，不将请求数或 IP 数直接称为真实用户数。
 - MCP 调用审计在独立 `MCP_CONTEXT_JSON` 保存受控协议上下文及有界脱敏的 input/output 快照（输入 8 KiB、输出 32 KiB、总上下文 48 KiB），敏感 key 脱敏并排除 `_meta`，不保存凭据、完整原始 HTTP 请求响应或聊天历史。
 
-## 产品反馈与安装心跳
+## 产品反馈
 
-- 客户端代码位于 `backend/vendor/tongyan-support/`（`Tongyan.Support.Client` + `Tongyan.Telemetry`）以及 `frontend/src/components/ProductFeedback/`；服务器端接收实现不在本仓库。
-- 安装心跳默认开启（`Support:TelemetryEnabled` 默认 `true`，`SupportHeartbeatWorker` 每 5 分钟一轮），用于统计安装量；不得擅自改为默认关闭或删除上报端点。
-- 上报内容仅限产品标识、安装 ID、产品版本、操作系统、CPU 架构、分发渠道与心跳时间；不得加入查询内容、访问地址、用户标识或其他 PII。
+- 客户端代码位于 `backend/vendor/tongyan-support/support-client/`（`Tongyan.Support.Client`）以及 `frontend/src/components/ProductFeedback/`；服务器端接收实现不在本仓库。
+- 反馈只在用户主动提交时建立安装身份并签名请求；产品运行期间不自动注册、不上报安装心跳或统计信息，不得恢复自动上报。
+- 反馈上报内容仅限产品标识、安装 ID、产品版本、用户填写的正文、经确认的最终截图与原始录音；不得加入查询内容、访问地址、用户标识或其他 PII。
 - 安装身份（随机 GUID 与本地秘密）保存在 `Support:StateDirectory`，该目录随部署备份、不得提交到仓库；身份文件校验失败时不得生成替代身份。
-- 测试与本地联调关闭心跳：测试项目通过模块初始化强制设置 `Support__TelemetryEnabled=false`，CI 同样设置该变量；正常运行默认值保持不变。
+- 测试使用受控本地远端，不访问官方服务；反馈集成测试不得依赖真实网络。
 - 反馈附件只接受有界 PNG/JPEG/WAV，回执查询码只走 POST 正文；不要新增基于安装标识公开列出反馈的接口。
 
 ## 隐私与安全红线

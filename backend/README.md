@@ -102,26 +102,22 @@ dotnet run --project backend/src/IpLocation.Api/IpLocation.Api.csproj --no-launc
 
 MCP 上下文列由 `20261103140118_AddMcpCallContext` 增量迁移新增；启动不自动迁移，迁移与验证见 [SQL 交付](../deploy/sql/README.md)。
 
-## 产品反馈与安装心跳
+## 产品反馈
 
-产品端包含默认开启的运行心跳与用户主动反馈链路；服务器端（接收入库、审核与公开回复）不在本开源仓库内，由官方服务提供。本仓库保留完整的客户端与转发实现：
+产品端仅在用户主动提交反馈时使用安装身份与转发链路；服务器端（接收入库、审核与公开回复）不在本开源仓库内，由官方服务提供。本仓库保留完整的客户端与转发实现：
 
-- `vendor/tongyan-support/support-client/`（`Tongyan.Support.Client`）：安装身份（持久随机 GUID + 本地 HMAC 秘密）、签名请求、安装注册、心跳、反馈提交与回执查询；安装状态默认保存在 `Support:StateDirectory`（本地应用数据下的 `Tongyan/IpLocation/support`）。
-- `vendor/tongyan-support/telemetry-sdk-dotnet/`（`Tongyan.Telemetry`）：`HeartbeatRunner` 启动后立即发送一次心跳，之后每 5 分钟一轮；进程退出不补发历史。
+- `vendor/tongyan-support/support-client/`（`Tongyan.Support.Client`）：安装身份（持久随机 GUID + 本地 HMAC 秘密）、签名请求、安装注册、反馈提交与回执查询；安装状态默认保存在 `Support:StateDirectory`（本地应用数据下的 `Tongyan/IpLocation/support`）。
 - `Controllers/SupportController.cs`：浏览器同源反馈转发（文字 + 最终截图 + WAV 录音），限制附件类型与大小，并按可信来源限流。
-- `Controllers/Console/ConsoleSupportController.cs`：后台查看安装标识、最近心跳并开关自动上报；写操作要求管理员身份、防伪与可靠审计。
-- `Workers/SupportHeartbeatWorker.cs`：等待宿主就绪后在后台运行心跳，不阻塞启动。
 
 | 配置 | 默认值 | 说明 |
 | --- | --- | --- |
-| `Support:TelemetryEnabled` | `true` | 自动心跳总开关；设为 `false` 时停止注册与心跳，后台仍可查看状态 |
 | `Support:StateDirectory` | `{LocalApplicationData}/Tongyan/IpLocation/support` | 安装身份目录，必须为绝对路径并随部署一起备份 |
 | `Support:ProductVersion` | `unknown` | 可选，上报的产品版本 |
 | `Support:Endpoint` | 固定为 `https://api.tongyaninfo.com` | 官方接收端；分叉部署时按需调整源码 |
 
-上报字段仅限产品标识、安装 ID、产品版本、操作系统、CPU 架构、分发渠道和心跳时间，不包含查询内容、访问地址或任何业务数据。关闭自动上报后仍可主动提交用户反馈。
+反馈只在用户主动提交时建立安装身份并发送请求；产品运行期间不自动注册、不上报安装心跳或统计信息，也不包含查询内容、访问地址或任何业务数据。
 
-**测试与本地验证必须关闭心跳**：运行 `dotnet test` 或启动本机实例验证前设置 `Support__TelemetryEnabled=false`，避免向官方服务注册测试安装或污染统计。测试项目通过 `Common/SupportTelemetryIsolation.cs` 的模块初始化强制关闭，CI 同样设置该环境变量；产品运行时的默认值不受影响。
+**测试使用受控本地远端**：运行 `dotnet test` 时反馈测试替换为假远端，不访问官方服务，也不需要关闭任何心跳开关；本机联调提交真实反馈前请自行确认目标服务。
 
 ## 后台管理
 

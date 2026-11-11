@@ -35,8 +35,7 @@ public sealed class InstallationStore(SupportOptions options)
                     current.InstallationSecret.Any(c => !char.IsAsciiHexDigit(c) || char.IsUpper(c)))
                     throw new IOException("身份文件内容无效。");
             }
-            else current = new(Guid.NewGuid().ToString("D"), Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32)),
-                options.TelemetryEnabled, false);
+            else current = new(Guid.NewGuid().ToString("D"), Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32)), false);
             var next = change(current);
             if (!File.Exists(path) || next != current) await WriteAtomicAsync(path, JsonSerializer.SerializeToUtf8Bytes(next, Json), ct);
             return next;

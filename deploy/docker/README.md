@@ -67,7 +67,7 @@ docker compose -f compose.yaml run --rm api \
 - 数据源文件以只读卷挂载到 `/data`；目录 `data/`、`keys/`、`uploads/` 需要事先准备，其中数据源文件请自行按各来源许可下载。
 - 后台入口受来源 IP 白名单限制。`appsettings.json` 中的 `192.0.2.0/24`、`198.51.100.0/24` 是 RFC 5737 文档示例网段，请在后台或配置中替换为实际管理网段。从目标机本机 `127.0.0.1` 访问时，后端看到的可能是 Docker 网关地址，会被白名单拒绝，需从白名单网段访问。
 - 凭据不写入仓库与 compose 文件：数据库密码在部署目录 `.env`，管理员密码文件在 `keys/`。
-- 产品安装心跳默认开启（`Support__TelemetryEnabled=true`），每 5 分钟上报一次安装级元数据；安装身份保存在 `support/`，请与部署一起备份。可在后台“产品遥测”或通过 `Support__TelemetryEnabled=false` 关闭。
+- 产品反馈使用安装身份，只在用户主动提交反馈时建立并签名请求；身份保存在 `support/`，请与部署一起备份。产品运行期间不自动上报心跳或统计信息。
 - `pgdata/` 卷包含数据库数据，不要用 `docker compose down -v` 清理；数据库结构与数据变更前请先备份。
 
 ## Cloudflare Tunnel 与可信代理
